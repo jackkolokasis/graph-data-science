@@ -38,6 +38,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongPredicate;
 
+import java.lang.reflect.Field;
+
 /**
  * Huge Graph contains two array like data structures.
  * <p>
@@ -98,6 +100,18 @@ public class HugeGraph implements IdMapGraph {
     private boolean canRelease = true;
 
     private final boolean hasRelationshipProperty;
+	
+    private static final sun.misc.Unsafe _UNSAFE;
+	
+    static {
+      try {
+        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+      } catch (Exception e) {
+        throw new RuntimeException("HugeHeap: Failed to " + "get unsafe", e);
+      }
+    }
 
     public static HugeGraph create(
         IdMap nodes,
@@ -106,7 +120,7 @@ public class HugeGraph implements IdMapGraph {
         Optional<PropertyCSR> maybePropertyCSR,
         AllocationTracker tracker
     ) {
-        return new HugeGraph(
+        HugeGraph hugeGraph = new HugeGraph(
             nodes,
             nodeProperties,
             topologyCSR.elementCount(),
@@ -119,6 +133,10 @@ public class HugeGraph implements IdMapGraph {
             topologyCSR.orientation(),
             tracker
         );
+		
+        _UNSAFE.h2Move(0);
+
+        return hugeGraph;
     }
 
     public HugeGraph(
@@ -134,6 +152,7 @@ public class HugeGraph implements IdMapGraph {
         Orientation orientation,
         AllocationTracker tracker
     ) {
+      System.out.println("Here 2 !!!!!!!!!");
         this.idMapping = idMapping;
         this.tracker = tracker;
         this.nodeProperties = nodeProperties;
@@ -151,11 +170,13 @@ public class HugeGraph implements IdMapGraph {
 
     @Override
     public long nodeCount() {
+        System.out.println("Here 3 !!!!!!!!!");
         return idMapping.nodeCount();
     }
 
     @Override
     public long relationshipCount() {
+        System.out.println("Here 4 !!!!!!!!!");
         return relationshipCount;
     }
 

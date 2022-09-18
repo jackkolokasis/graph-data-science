@@ -35,8 +35,22 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+    
+import java.lang.reflect.Field;
 
 final class RelationshipsScanner extends StatementAction implements RecordScanner {
+    
+    private static final sun.misc.Unsafe _UNSAFE;
+
+    static {
+      try {
+        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+      } catch (Exception e) {
+        throw new RuntimeException("HugeHeap: Failed to " + "get unsafe", e);
+      }
+    }
 
     static InternalImporter.CreateScanner of(
             GraphDatabaseAPI api,
@@ -150,14 +164,15 @@ final class RelationshipsScanner extends StatementAction implements RecordScanne
             List<SingleTypeRelationshipImporter> importers = this.importerBuilders.stream()
                     .map(imports -> imports.withBuffer(idMap, cursor.bulkSize(), read, cursors))
                     .collect(Collectors.toList());
+        
+            _UNSAFE.h2TagRoot(this.importerBuilders, 0, 0);
 
             RelationshipsBatchBuffer[] buffers = importers
                     .stream()
                     .map(SingleTypeRelationshipImporter::buffer)
                     .toArray(RelationshipsBatchBuffer[]::new);
-
             RecordsBatchBuffer<RelationshipRecord> buffer = CompositeRelationshipsBatchBuffer.of(buffers);
-
+            System.out.println("Mark 2");
             long allImportedRels = 0L;
             long allImportedWeights = 0L;
             while (buffer.scan(cursor)) {
