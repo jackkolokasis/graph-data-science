@@ -23,6 +23,8 @@ import org.immutables.builder.Builder;
 
 import java.lang.reflect.Array;
 
+import java.lang.reflect.Field;
+
 public final class RelationshipsBatchBuffer<PROPERTY_REF> extends RecordsBatchBuffer {
 
     // For relationships, the buffer is divided into 2-long blocks
@@ -39,12 +41,27 @@ public final class RelationshipsBatchBuffer<PROPERTY_REF> extends RecordsBatchBu
     private final PROPERTY_REF[] propertyReferencesCopy;
     private final int[] histogram;
 
+    private static final sun.misc.Unsafe _UNSAFE;
+
+    static {
+      try {
+        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+      } catch (Exception e) {
+        throw new RuntimeException("HugeHeap: Failed to " + "get unsafe", e);
+      }
+    }
+
     @Builder.Factory
     static <PROPERTY_REF> RelationshipsBatchBuffer<PROPERTY_REF> relationshipsBatchBuffer(
         int capacity,
         Class<PROPERTY_REF> propertyReferenceClass
     ) {
-        return new RelationshipsBatchBuffer(capacity, propertyReferenceClass);
+        RelationshipsBatchBuffer buffer =  new RelationshipsBatchBuffer(capacity, propertyReferenceClass);
+
+        _UNSAFE.h2TagRoot(buffer, 0, 0);
+        return buffer;
     }
 
     private RelationshipsBatchBuffer(int capacity, Class<PROPERTY_REF> propertyReferenceClass) {
@@ -56,6 +73,8 @@ public final class RelationshipsBatchBuffer<PROPERTY_REF> extends RecordsBatchBu
         relationshipReferencesCopy = RadixSort.newCopy(relationshipReferences);
         propertyReferencesCopy = RadixSort.newCopy(propertyReferences);
         histogram = RadixSort.newHistogram(capacity);
+        
+        _UNSAFE.h2TagRoot(this, 0, 0);
     }
 
     public void add(long sourceId, long targetId) {

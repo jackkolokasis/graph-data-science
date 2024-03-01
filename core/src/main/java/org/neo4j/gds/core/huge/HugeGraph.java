@@ -59,6 +59,8 @@ import java.util.stream.StreamSupport;
 
 import static org.neo4j.gds.utils.StringFormatting.formatWithLocale;
 
+import java.lang.reflect.Field;
+
 /**
  * Huge Graph contains two array like data structures.
  * <p>
@@ -120,6 +122,19 @@ public class HugeGraph implements CSRGraph {
     private @Nullable PropertyCursor inversePropertyCursorCache;
 
     protected final boolean hasRelationshipProperty;
+
+    private static final sun.misc.Unsafe _UNSAFE;
+
+    static {
+      try {
+        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        _UNSAFE = (sun.misc.Unsafe) unsafeField.get(null);
+      } catch (Exception e) {
+        throw new RuntimeException("HugeHeap: Failed to " + "get unsafe", e);
+      }
+    }
+
     protected final boolean isMultiGraph;
 
     @Builder.Factory
@@ -133,7 +148,7 @@ public class HugeGraph implements CSRGraph {
         Optional<Topology> inverseTopology,
         Optional<Properties> inverseRelationshipProperties
     ) {
-        return new HugeGraph(
+        HugeGraph hugeGraph = new HugeGraph(
             nodes,
             schema,
             characteristics,
@@ -147,6 +162,9 @@ public class HugeGraph implements CSRGraph {
             inverseRelationshipProperties.map(Properties::propertiesList).orElse(null),
             topology.isMultiGraph()
         );
+        
+        _UNSAFE.h2Move(0);
+        return hugeGraph;   
     }
 
     protected HugeGraph(
